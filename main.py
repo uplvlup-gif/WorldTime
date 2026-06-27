@@ -1,4 +1,4 @@
-import os 
+import os
 import discord
 from discord.ext import tasks
 import datetime
@@ -6,11 +6,11 @@ import pytz
 import asyncio
 
 # ==================== CONFIGURATION ====================
-TOKEN = os.environ.get("DISCORD_TOKEN")          # Paste your Developer Portal bot token here
-CHANNEL_ID = 1511642944891916378          # Paste your #world-chart channel ID here
+TOKEN = os.environ.get("DISCORD_TOKEN")   # Kept secure for Railway environment injection
+CHANNEL_ID = 1511642944891916378           # Replace with your actual #world-chart channel ID
 # =======================================================
 
-# Complete mapping of your 38 unique Discord roles to global time databases
+# Explicit mapping of your 38 Discord roles to dynamic regional databases tracking DST boundaries
 TIMEZONE_MAP = {
     # --- Western Hemisphere ---
     "GMT -12 / Baker Island (AoE)": "Etc/GMT+12",
@@ -56,15 +56,15 @@ TIMEZONE_MAP = {
 }
 
 intents = discord.Intents.default()
-intents.members = True          # Allows reading member list data
-intents.message_content = True  # Allows managing content layouts
+intents.members = True
+intents.message_content = True
 client = discord.Client(intents=intents)
 chart_message = None
 
 @client.event
 async def on_ready():
     print(f"✅ Logged in successfully as {client.user.name}")
-    print("🌍 Initializing global timezone sync loop...")
+    print("🌍 Initializing live DST-aware tracking string loops...")
     update_chart.start()
 
 @tasks.loop(minutes=5)
@@ -72,41 +72,62 @@ async def update_chart():
     global chart_message
     channel = client.get_channel(CHANNEL_ID)
     if not channel:
-        print(f"❌ Error: Channel ID {CHANNEL_ID} not found. Verify bot channel access.")
+        print(f"❌ Error: Channel ID {CHANNEL_ID} not found.")
         return
 
     guild = channel.guild
     
-    # We use two separate embedded messages because Discord has a 6000 character limit per embed
     embed_west = discord.Embed(
         title="📊 GLOBAL SERVER DIRECTORY (WEST)", 
         color=0x3498db,
-        description="Live directory tracking our Western Hemisphere community distribution and active hours.\n\u200b"
+        description="Live tracking dashboard showing our Western Hemisphere community distribution and dynamic active hours.\n\u200b"
     )
     embed_east = discord.Embed(
         title="📊 GLOBAL SERVER DIRECTORY (EAST)", 
         color=0xe67e22,
-        description="Live directory tracking our Eastern Hemisphere community distribution and active hours.\n\u200b"
+        description="Live tracking dashboard showing our Eastern Hemisphere community distribution and dynamic active hours.\n\u200b"
     )
 
     is_eastern = False
 
     for role_name, tz_string in TIMEZONE_MAP.items():
-        # Switch target container when reaching the eastern list division marker
         if role_name == "GMT +3:30 / Iran (IRST)":
             is_eastern = True
 
         role = discord.utils.get(guild.roles, name=role_name)
         if role:
             try:
-                # Calculate active time metrics per region string
+                # ⏰ CALCULATE TARGET DST TIME
                 tz = pytz.timezone(tz_string)
-                local_time = datetime.datetime.now(tz).strftime("%I:%M %p")
+                now_localized = datetime.datetime.now(tz)
+                local_time = now_localized.strftime("%I:%M %p")
+                
+                # 🔄 DYNAMIC CODE LABEL REPLACEMENT
+                # Pulls active abbreviation code strings (e.g. PDT instead of PST if active)
+                active_abbreviation = now_localized.strftime("%Z")
+                
+                display_title = role_name
+                # Intelligently rewrite fixed string descriptors to match current environmental shifts
+                replacements = {
+                    "(PST)": f"({active_abbreviation})",
+                    "(MST)": f"({active_abbreviation})",
+                    "(CST)": f"({active_abbreviation})",
+                    "(EST)": f"({active_abbreviation})",
+                    "(AST)": f"({active_abbreviation})",
+                    "(WET / GMT)": f"({active_abbreviation})",
+                    "(CET)": f"({active_abbreviation})",
+                    "(EET)": f"({active_abbreviation})",
+                    "(AEST)": f"({active_abbreviation})",
+                    "(NZST)": f"({active_abbreviation})"
+                }
+                
+                for static_tag, dynamic_tag in replacements.items():
+                    if static_tag in display_title:
+                        display_title = display_title.replace(static_tag, dynamic_tag)
                 
                 # Fetch human users assigned to role strings (ignores integrated applications/bots)
                 members = [member.mention for member in role.members if not member.bot]
                 
-                # Format directory data fields strings
                 if members:
                     member_list = ", ".join(members)
                     count_suffix = f"({len(members)} active)"
@@ -116,40 +137,33 @@ async def update_chart():
 
                 target_embed = embed_east if is_eastern else embed_west
                 target_embed.add_field(
-                    name=f"{role_name} — 🕒 {local_time} {count_suffix}",
+                    name=f"{display_title} — 🕒 {local_time} {count_suffix}",
                     value=f"{member_list}\n\u200b",
                     inline=False
                 )
             except Exception as e:
                 print(f"⚠️ Error parsing timezone {tz_string}: {e}")
 
-    # Track message objects to perform background text modifications instead of duplicate posting
     try:
-        messages_to_send = [embed_west, embed_east]
-        
-        # Look for existing messages posted by this bot token to update cleanly
         bot_messages = []
         async for msg in channel.history(limit=20):
             if msg.author == client.user:
                 bot_messages.append(msg)
         
-        # Reverse list to keep the chronological ordering correct
         bot_messages.reverse()
 
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
-            print("🔄 Timezone chart successfully updated and synced.")
+            print("🔄 Timezone chart successfully updated and synced with dynamic DST shifts.")
         else:
-            # Purge channel debris and establish fresh structural anchors if missing
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
-            print("✨ Fresh database charts deployed to tracking channel.")
+            print("✨ Fresh DST-aware database charts deployed to tracking channel.")
             
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-# Execute main wrapper runtime instance
 if __name__ == "__main__":
     client.run(TOKEN)
