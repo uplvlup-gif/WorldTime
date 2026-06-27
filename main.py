@@ -10,7 +10,8 @@ TOKEN = os.environ.get("DISCORD_TOKEN")   # Kept secure for Railway environment 
 CHANNEL_ID = 1511642944891916378           # Replace with your actual #world-chart channel ID
 # =======================================================
 
-# Explicit mapping of your 38 Discord roles to dynamic regional databases tracking DST boundaries
+
+# Mapping your unique Discord roles to global time zones
 TIMEZONE_MAP = {
     # --- Western Hemisphere ---
     "GMT -12 / Baker Island (AoE)": "Etc/GMT+12",
@@ -68,12 +69,45 @@ async def on_ready():
     print("🌍 Initializing live DST-aware tracking string loops...")
     update_chart.start()
 
+# ==================== NEW AUTOMATIC ROLE SWAPPER ====================
+@client.event
+async def on_raw_reaction_add(payload):
+    # Ignore reactions made by the bot itself to prevent infinite processing loops
+    if payload.user_id == client.user.id:
+        return
+
+    guild = client.get_guild(payload.guild_id)
+    if not guild:
+        return
+
+    member = guild.get_member(payload.user_id)
+    if not member:
+        return
+
+    # Check if the user holds the target missing timezone tag
+    missing_role = discord.utils.get(guild.roles, name="MissingTimezone")
+    if not missing_role or missing_role not in member.roles:
+        return
+
+    # Scan through your 38 roles to see if the emoji clicked matches a timezone role
+    for role_name in TIMEZONE_MAP.keys():
+        target_role = discord.utils.get(guild.roles, name=role_name)
+        if target_role:
+            # If the user just gained a valid timezone, immediately strip the tracking tag
+            if target_role in member.roles:
+                try:
+                    await member.remove_roles(missing_role)
+                    print(f"⚡ Python auto-stripped 'Missing Timezone' role from {member.name}!")
+                    break
+                except discord.errors.Forbidden:
+                    print("❌ Permission Error: Move the bot's role HIGHER up in Server Settings > Roles!")
+# ====================================================================
+
 @tasks.loop(minutes=5)
 async def update_chart():
     global chart_message
     channel = client.get_channel(CHANNEL_ID)
     if not channel:
-        print(f"❌ Error: Channel ID {CHANNEL_ID} not found.")
         return
 
     guild = channel.guild
@@ -98,35 +132,24 @@ async def update_chart():
         role = discord.utils.get(guild.roles, name=role_name)
         if role:
             try:
-                # ⏰ CALCULATE TARGET DST TIME
                 tz = pytz.timezone(tz_string)
                 now_localized = datetime.datetime.now(tz)
                 local_time = now_localized.strftime("%I:%M %p")
-                
-                # 🔄 DYNAMIC CODE LABEL REPLACEMENT
-                # Pulls active abbreviation code strings (e.g. PDT instead of PST if active)
                 active_abbreviation = now_localized.strftime("%Z")
                 
                 display_title = role_name
-                # Intelligently rewrite fixed string descriptors to match current environmental shifts
                 replacements = {
-                    "(PST)": f"({active_abbreviation})",
-                    "(MST)": f"({active_abbreviation})",
-                    "(CST)": f"({active_abbreviation})",
-                    "(EST)": f"({active_abbreviation})",
-                    "(AST)": f"({active_abbreviation})",
-                    "(WET / GMT)": f"({active_abbreviation})",
-                    "(CET)": f"({active_abbreviation})",
-                    "(EET)": f"({active_abbreviation})",
-                    "(AEST)": f"({active_abbreviation})",
-                    "(NZST)": f"({active_abbreviation})"
+                    "(PST)": f"({active_abbreviation})", "(MST)": f"({active_abbreviation})",
+                    "(CST)": f"({active_abbreviation})", "(EST)": f"({active_abbreviation})",
+                    "(AST)": f"({active_abbreviation})", "(WET / GMT)": f"({active_abbreviation})",
+                    "(CET)": f"({active_abbreviation})", "(EET)": f"({active_abbreviation})",
+                    "(AEST)": f"({active_abbreviation})", "(NZST)": f"({active_abbreviation})"
                 }
                 
                 for static_tag, dynamic_tag in replacements.items():
                     if static_tag in display_title:
                         display_title = display_title.replace(static_tag, dynamic_tag)
                 
-                # Fetch human users assigned to role strings (ignores integrated applications/bots)
                 members = [member.mention for member in role.members if not member.bot]
                 
                 if members:
@@ -154,14 +177,12 @@ async def update_chart():
         bot_messages.reverse()
 
         if len(bot_messages) >= 2:
-            await bot_messages[0].edit(embed=embed_west)
-            await bot_messages[1].edit(embed=embed_east)
-            print("🔄 Timezone chart successfully updated and synced with dynamic DST shifts.")
+            await bot_messages.edit(embed=embed_west)
+            await bot_messages.edit(embed=embed_east)
         else:
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
-            print("✨ Fresh DST-aware database charts deployed to tracking channel.")
             
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
