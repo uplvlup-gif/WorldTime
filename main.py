@@ -6,7 +6,7 @@ import asyncio
 
 # ==================== CONFIGURATION ====================
 TOKEN = os.environ.get("DISCORD_TOKEN")          # Paste your Developer Portal bot token here
-CHANNEL_ID = 123456789012345678          # Paste your #world-chart channel ID here
+CHANNEL_ID = 1511642944891916378          # Paste your #world-chart channel ID here
 # =======================================================
 
 # Complete mapping of your 38 unique Discord roles to global time databases
