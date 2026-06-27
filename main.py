@@ -50,7 +50,7 @@ TIMEZONE_MAP = {
     "GMT +9:30 / Central Australia (ACST)": "Australia/Darwin",
     "GMT +10 / East Australia (AEST)": "Australia/Sydney",
     "GMT +10:30 / Lord Howe Island (LHST)": "Australia/Lord_Howe",
-    "GMT +11 / Solomon Islands (SBT)": "Asia/Guadalcanal",
+    "GMT +11 / Solomon Islands (SBT)": "Pacific/Guadalcanal",
     "GMT +12 / New Zealand (NZST)": "Pacific/Auckland",
     "GMT +12:45 / Chatham Islands (CHAST)": "Pacific/Chatham",
     "GMT +13 / Tonga (TOT)": "Pacific/Tongatapu",
@@ -168,21 +168,28 @@ async def update_chart():
             except Exception as e:
                 print(f"⚠️ Error parsing timezone {tz_string}: {e}")
 
+        # Track message objects to perform background text modifications instead of duplicate posting
     try:
+        # Look for existing messages posted by this bot token to update cleanly
         bot_messages = []
         async for msg in channel.history(limit=20):
             if msg.author == client.user:
                 bot_messages.append(msg)
         
+        # Reverse list to keep the chronological ordering correct (West first, then East)
         bot_messages.reverse()
 
+        # FIXED: Targets individual list objects using index brackets so the list edits correctly!
         if len(bot_messages) >= 2:
-            await bot_messages.edit(embed=embed_west)
-            await bot_messages.edit(embed=embed_east)
+            await bot_messages[0].edit(embed=embed_west)
+            await bot_messages[1].edit(embed=embed_east)
+            print("🔄 Timezone chart successfully updated and synced with dynamic DST shifts.")
         else:
+            # Purge channel debris and establish fresh structural anchors if missing
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
+            print("✨ Fresh DST-aware database charts deployed to tracking channel.")
             
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
