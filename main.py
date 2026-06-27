@@ -20,6 +20,7 @@ TIMEZONE_MAP = {
     "GMT -9 / Alaska (AKST)": "America/Anchorage",
     "GMT -8 / Pacific (PST)": "America/Los_Angeles",
     "GMT -7 / Mountain (MST)": "America/Denver",
+    "GMT -7 / Arizona (MST)": "America/Phoenix",
     "GMT -6 / Central (CST)": "America/Chicago",
     "GMT -5 / Eastern (EST)": "America/New_York",
     "GMT -4 / Atlantic (AST)": "America/Halifax",
