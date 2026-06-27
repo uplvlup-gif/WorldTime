@@ -5,7 +5,7 @@ import pytz
 import asyncio
 
 # ==================== CONFIGURATION ====================
-TOKEN = "MTUyMDM3ODkyNDIzOTE1OTQ3OA.G5CwEL.68nrTwCe1pKx4fHmNSfTGQ10XLU6XNnv33_WO4"          # Paste your Developer Portal bot token here
+TOKEN = os.environ.get("DISCORD_TOKEN")          # Paste your Developer Portal bot token here
 CHANNEL_ID = 123456789012345678          # Paste your #world-chart channel ID here
 # =======================================================
 
