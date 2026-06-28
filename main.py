@@ -72,14 +72,12 @@ async def on_ready():
         update_chart.start()
 
 def push_map_to_github(html_content):
-    """Encodes and forces a push of our interactive map layout directly into the repository."""
+    """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
     if not GITHUB_TOKEN:
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    # 🛠️ HARDCODED SECURE GITHUB Rest API PATHWAYS (Bypasses variable composition bugs)
-    url_get = "https://github.com"
-    url_put = "https://github.com"
+    url = "https://github.com"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -87,9 +85,9 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # Appends a unique cache-buster parameter to guarantee live server delivery
-        cache_bust_url = f"{url_get}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
-        response = requests.get(cache_bust_url, headers=headers)
+        # 🔥 FIXED: Use a clean system parameter to fetch the real base data block
+        params = {"ref": "main"}
+        response = requests.get(url, headers=headers, params=params)
         
         sha = None
         if response.status_code == 200:
@@ -104,9 +102,9 @@ def push_map_to_github(html_content):
         if sha:
             payload["sha"] = sha
 
-        put_response = requests.put(url_put, headers=headers, json=payload)
+        put_response = requests.put(url, headers=headers, json=payload)
         
-        if put_response.status_code == 200 or put_response.status_code == 201:
+        if put_response.status_code in:
             print("🌐 SUCCESS: Interactive web map has been successfully updated on your GitHub branch!")
         else:
             print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
@@ -185,7 +183,6 @@ async def update_chart():
                     member_list = "*No active members*"
                     count_suffix = ""
 
-                target_embed = embed_east if is_eastern else embed_west
                 target_embed = embed_east if is_eastern else embed_west
                 target_embed.add_field(
                     name=f"{display_title} — 🕒 {local_time} {count_suffix}",
