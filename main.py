@@ -6,12 +6,10 @@ import pytz
 import asyncio
 
 # ==================== CONFIGURATION ====================
-TOKEN = os.environ.get("DISCORD_TOKEN")   # Kept secure for Railway environment injection
-CHANNEL_ID = 1511642944891916378           # Replace with your actual #world-chart channel ID
+TOKEN = os.environ.get("DISCORD_TOKEN")   
+CHANNEL_ID = 1511642944891916378           
 # =======================================================
 
-
-# Mapping your unique Discord roles to global time zones
 TIMEZONE_MAP = {
     # --- Western Hemisphere ---
     "GMT -12 / Baker Island (AoE)": "Etc/GMT+12",
@@ -61,18 +59,16 @@ intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 client = discord.Client(intents=intents)
-chart_message = None
 
 @client.event
 async def on_ready():
     print(f"✅ Logged in successfully as {client.user.name}")
     print("🌍 Initializing live DST-aware tracking string loops...")
-    update_chart.start()
+    if not update_chart.is_running():
+        update_chart.start()
 
-# ==================== NEW AUTOMATIC ROLE SWAPPER ====================
 @client.event
 async def on_raw_reaction_add(payload):
-    # Ignore reactions made by the bot itself to prevent infinite processing loops
     if payload.user_id == client.user.id:
         return
 
@@ -84,33 +80,38 @@ async def on_raw_reaction_add(payload):
     if not member:
         return
 
-    # Check if the user holds the target missing timezone tag
     missing_role = discord.utils.get(guild.roles, name="MissingTimezone")
     if not missing_role or missing_role not in member.roles:
         return
 
-    # Scan through your 38 roles to see if the emoji clicked matches a timezone role
-    for role_name in TIMEZONE_MAP.keys():
-        target_role = discord.utils.get(guild.roles, name=role_name)
-        if target_role:
-            # If the user just gained a valid timezone, immediately strip the tracking tag
-            if target_role in member.roles:
-                try:
-                    await member.remove_roles(missing_role)
-                    print(f"⚡ Python auto-stripped 'Missing Timezone' role from {member.name}!")
-                    break
-                except discord.errors.Forbidden:
-                    print("❌ Permission Error: Move the bot's role HIGHER up in Server Settings > Roles!")
-# ====================================================================
+    # Optimization: Use a fast set lookup instead of a loop
+    timezone_names = set(TIMEZONE_MAP.keys())
+    has_timezone = any(role.name in timezone_names for role in member.roles)
+
+    if has_timezone:
+        try:
+            await member.remove_roles(missing_role)
+            print(f"⚡ Python auto-stripped 'Missing Timezone' role from {member.name}!")
+        except discord.errors.Forbidden:
+            print("❌ Permission Error: Move the bot's role HIGHER up in Server Settings > Roles!")
 
 @tasks.loop(minutes=5)
 async def update_chart():
-    global chart_message
+    await client.wait_until_ready()
     channel = client.get_channel(CHANNEL_ID)
     if not channel:
         return
 
     guild = channel.guild
+    
+    try:
+        # 🔥 FIXED: Force a single, clean cache download ONCE before iterating roles
+        await guild.chunk() 
+    except Exception as e:
+        print(f"⚠️ Chunking failed, proceeding with local cache: {e}")
+
+    # Optimization: Map roles by name to avoid O(N) database iterations
+    roles_by_name = {role.name: role for role in guild.roles}
     
     embed_west = discord.Embed(
         title="📊 GLOBAL SERVER DIRECTORY (WEST)", 
@@ -124,36 +125,26 @@ async def update_chart():
     )
 
     is_eastern = False
+    replacements = ["(PST)", "(MST)", "(CST)", "(EST)", "(AST)", "(WET / GMT)", "(CET)", "(EET)", "(AEST)", "(NZST)"]
 
     for role_name, tz_string in TIMEZONE_MAP.items():
         if role_name == "GMT +3:30 / Iran (IRST)":
             is_eastern = True
 
-        role = discord.utils.get(guild.roles, name=role_name)
+        role = roles_by_name.get(role_name)
         if role:
             try:
-                # 🔄 FORCE CACHE RELOAD: Downloads all member details to prevent raw number bugs
-                await guild.chunk() 
-
                 tz = pytz.timezone(tz_string)
                 now_localized = datetime.datetime.now(tz)
                 local_time = now_localized.strftime("%I:%M %p")
                 active_abbreviation = now_localized.strftime("%Z")
                 
                 display_title = role_name
-                replacements = {
-                    "(PST)": f"({active_abbreviation})", "(MST)": f"({active_abbreviation})",
-                    "(CST)": f"({active_abbreviation})", "(EST)": f"({active_abbreviation})",
-                    "(AST)": f"({active_abbreviation})", "(WET / GMT)": f"({active_abbreviation})",
-                    "(CET)": f"({active_abbreviation})", "(EET)": f"({active_abbreviation})",
-                    "(AEST)": f"({active_abbreviation})", "(NZST)": f"({active_abbreviation})"
-                }
-                
-                for static_tag, dynamic_tag in replacements.items():
+                for static_tag in replacements:
                     if static_tag in display_title:
-                        display_title = display_title.replace(static_tag, dynamic_tag)
+                        display_title = display_title.replace(static_tag, f"({active_abbreviation})")
+                        break
                 
-                # FIXED: Changed back to member.mention for fully clickable tags!
                 members = [member.mention for member in role.members if not member.bot]
                 
                 if members:
@@ -169,28 +160,24 @@ async def update_chart():
                     value=f"{member_list}\n\u200b",
                     inline=False
                 )
-
             except Exception as e:
                 print(f"⚠️ Error parsing timezone {tz_string}: {e}")
 
-        # Track message objects to perform background text modifications instead of duplicate posting
     try:
-        # Scan channel log strings to fetch the target containers
         bot_messages = []
-        async for msg in channel.history(limit=20):
+        async for msg in channel.history(limit=10):
             if msg.author == client.user:
                 bot_messages.append(msg)
+                if len(bot_messages) == 2:
+                    break
         
-        # Sort chronologically so West sits cleanly on top of East
         bot_messages.reverse()
 
-        # If both placeholder targets are present, edit them seamlessly
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
             print("🔄 Timezone chart updated as a single seamless directory split.")
         else:
-            # If a structural target message was deleted, purge layout fragments and re-anchor
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
@@ -199,6 +186,8 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-
 if __name__ == "__main__":
-    client.run(TOKEN)
+    if not TOKEN:
+        print("❌ Error: DISCORD_TOKEN environment variable is missing!")
+    else:
+        client.run(TOKEN)
