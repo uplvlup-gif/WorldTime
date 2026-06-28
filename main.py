@@ -72,13 +72,14 @@ async def on_ready():
         update_chart.start()
 
 def push_map_to_github(html_content):
-    """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
+    """Encodes and forces a push of our interactive map layout directly into the repository."""
     if not GITHUB_TOKEN:
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    filename = "index.html"
-    url = f"https://github.com{filename}"
+    # 🛠️ HARDCODED SECURE GITHUB Rest API PATHWAYS (Bypasses variable composition bugs)
+    url_get = "https://github.com"
+    url_put = "https://github.com"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -87,7 +88,7 @@ def push_map_to_github(html_content):
 
     try:
         # Appends a unique cache-buster parameter to guarantee live server delivery
-        cache_bust_url = f"{url}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
+        cache_bust_url = f"{url_get}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
         response = requests.get(cache_bust_url, headers=headers)
         
         sha = None
@@ -103,7 +104,7 @@ def push_map_to_github(html_content):
         if sha:
             payload["sha"] = sha
 
-        put_response = requests.put(url, headers=headers, json=payload)
+        put_response = requests.put(url_put, headers=headers, json=payload)
         
         if put_response.status_code == 200 or put_response.status_code == 201:
             print("🌐 SUCCESS: Interactive web map has been successfully updated on your GitHub branch!")
@@ -112,6 +113,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 @tasks.loop(minutes=5)
 async def update_chart():
