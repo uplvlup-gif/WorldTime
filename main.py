@@ -171,29 +171,30 @@ async def update_chart():
 
         # Track message objects to perform background text modifications instead of duplicate posting
     try:
-        # Look for existing messages posted by this bot token to update cleanly
+        # Scan channel log strings to fetch the target containers
         bot_messages = []
         async for msg in channel.history(limit=20):
             if msg.author == client.user:
                 bot_messages.append(msg)
         
-        # Reverse list to keep the chronological ordering correct (West first, then East)
+        # Sort chronologically so West sits cleanly on top of East
         bot_messages.reverse()
 
-        # FIXED: Targets individual list objects using index brackets so the list edits correctly!
+        # If both placeholder targets are present, edit them seamlessly
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
-            print("🔄 Timezone chart successfully updated and synced with dynamic DST shifts.")
+            print("🔄 Timezone chart updated as a single seamless directory split.")
         else:
-            # Purge channel debris and establish fresh structural anchors if missing
+            # If a structural target message was deleted, purge layout fragments and re-anchor
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
-            print("✨ Fresh DST-aware database charts deployed to tracking channel.")
+            print("✨ Fresh data layouts deployed to tracking window.")
             
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
+
 
 if __name__ == "__main__":
     client.run(TOKEN)
