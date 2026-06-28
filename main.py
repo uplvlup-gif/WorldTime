@@ -199,37 +199,38 @@ async def update_chart():
                 members = [member.mention for member in role.members if not member.bot]
                 member_count = len(members)
 
-                # FIXED: Logic scope adjustment. Folium only places markers if a zone has users,
-                # preventing UnboundLocalError when accessing missing markup string variants.
+                # --- MERGED: Add dynamic geographic node markers for your website map ---
                 if member_count > 0:
-                clean_display_names = [member.display_name for member in role.members if not member.bot]
-                popup_markup = f"""<b>📍 {info['label']}</b><br>
+                    clean_display_names = [member.display_name for member in role.members if not member.bot]
+                    popup_markup = f"""<b>📍 {info['label']}</b><br>
 🕒 Time: {local_time}<br>
 👥 Count: {member_count}<br><br>
 """ + ", ".join(clean_display_names)
-                
-                folium.CircleMarker(
-                    location=[info["lat"], info["lon"]],
-                    radius=8 + (member_count * 1.5),
-                    popup=folium.Popup(popup_markup, max_width=280),
-                    color="#3498db" if not is_eastern else "#e67e22",
-                    fill=True,
-                    fill_opacity=0.55
-                ).add_to(world_map)
+                    
+                    folium.CircleMarker(
+                        location=[info["lat"], info["lon"]],
+                        radius=8 + (member_count * 1.5),
+                        popup=folium.Popup(popup_markup, max_width=280),
+                        color="#3498db" if not is_eastern else "#e67e22",
+                        fill=True,
+                        fill_opacity=0.55
+                    ).add_to(world_map)
+                # -----------------------------------------------------------------------
 
-            if members:
-                member_list = ", ".join(members)
-                count_suffix = f"({member_count} active)"
-            else:
-                member_list = "*No active members*"
-                count_suffix = ""
+                if members:
+                    member_list = ", ".join(members)
+                    count_suffix = f"({member_count} active)"
+                else:
+                    member_list = "*No active members*"
+                    count_suffix = ""
 
-            target_embed = embed_east if is_eastern else embed_west
-            target_embed.add_field(
-                name=f"{display_title} — 🕒 {local_time} {count_suffix}",
-                value=f"{member_list}\n\u200b",
-                inline=False
-            )
+                target_embed = embed_east if is_eastern else embed_west
+                target_embed.add_field(
+                    name=f"{display_title} — 🕒 {local_time} {count_suffix}",
+                    value=f"{member_list}\n\u200b",
+                    inline=False
+                )
+
         except Exception as e:
             print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
