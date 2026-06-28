@@ -72,7 +72,7 @@ async def on_ready():
         update_chart.start()
 
 def push_map_to_github(html_content):
-    """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
+    """Encodes and forces a push of our interactive map layout directly into the repository."""
     if not GITHUB_TOKEN:
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
@@ -85,7 +85,7 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # 🔥 FIXED: Use a clean system parameter to fetch the real base data block
+        # Use a clean system parameter to fetch the real base data block
         params = {"ref": "main"}
         response = requests.get(url, headers=headers, params=params)
         
@@ -104,7 +104,8 @@ def push_map_to_github(html_content):
 
         put_response = requests.put(url, headers=headers, json=payload)
         
-        if put_response.status_code in:
+        # 🔥 FIXED: Avoided the 'in' keyword to bypass text-stripping errors completely
+        if put_response.status_code == 200 or put_response.status_code == 201:
             print("🌐 SUCCESS: Interactive web map has been successfully updated on your GitHub branch!")
         else:
             print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
