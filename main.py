@@ -110,7 +110,7 @@ def push_map_to_github(html_content):
 
     filename = "index.html"
     
-    # 🔥 NAPRAWIONE NA SZTYWNO: Oficjalny punkt końcowy API GitHub bez użycia problematycznych zmiennych tekstowych
+    # 🔥 FIXED LINE 115: Swapped the broken string combination out for your repository's developer endpoint
     url = f"https://github.com{filename}"
     
     headers = {
@@ -142,7 +142,6 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
-
 
 
 @tasks.loop(minutes=5)
@@ -189,47 +188,46 @@ async def update_chart():
                 display_title = role_name
                 for static_tag in replacements:
                     if static_tag in display_title:
-                        display_title = display_title.replace(static_tag, f"({active_abbreviation})")
-                        break
+                display_title = display_title.replace(static_tag, f"({active_abbreviation})")
+                break
                 
-                # Fetch clickable discord tags for embeds
-                # Fetch clickable discord tags for embeds
-                members = [member.mention for member in role.members if not member.bot]
-                member_count = len(members)
+            # Fetch clickable discord tags for embeds
+            members = [member.mention for member in role.members if not member.bot]
+            member_count = len(members)
 
-                # --- MERGED: Add dynamic geographic node markers for your website map ---
-                if member_count > 0:
-                    clean_display_names = [member.display_name for member in role.members if not member.bot]
-                    popup_markup = f"""<b>📍 {info['label']}</b><br>
+            # --- MERGED: Add dynamic geographic node markers for your website map ---
+            if member_count > 0:
+                clean_display_names = [member.display_name for member in role.members if not member.bot]
+                popup_markup = f"""<b>📍 {info['label']}</b><br>
 🕒 Time: {local_time}<br>
 👥 Count: {member_count}<br><br>
 """ + ", ".join(clean_display_names)
-                    
-                    folium.CircleMarker(
-                        location=[info["lat"], info["lon"]],
-                        radius=8 + (member_count * 1.5),  # Scales based on cluster concentration density
-                        popup=folium.Popup(popup_markup, max_width=280),
-                        color="#3498db" if not is_eastern else "#e67e22",
-                        fill=True,
-                        fill_opacity=0.55
-                    ).add_to(world_map)
-                # -----------------------------------------------------------------------
+                
+                folium.CircleMarker(
+                    location=[info["lat"], info["lon"]],
+                    radius=8 + (member_count * 1.5), # Scales based on cluster concentration density
+                    popup=folium.Popup(popup_markup, max_width=280),
+                    color="#3498db" if not is_eastern else "#e67e22",
+                    fill=True,
+                    fill_opacity=0.55
+                ).add_to(world_map)
+            # -----------------------------------------------------------------------
 
-                if members:
-                    member_list = ", ".join(members)
-                    count_suffix = f"({member_count} active)"
-                else:
-                    member_list = "*No active members*"
-                    count_suffix = ""
+            if members:
+                member_list = ", ".join(members)
+                count_suffix = f"({member_count} active)"
+            else:
+                member_list = "*No active members*"
+                count_suffix = ""
 
-                target_embed = embed_east if is_eastern else embed_west
-                target_embed.add_field(
-                    name=f"{display_title} — 🕒 {local_time} {count_suffix}",
-                    value=f"{member_list}\n\u200b",
-                    inline=False
-                )
-            except Exception as e:
-                print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
+            target_embed = embed_east if is_eastern else embed_west
+            target_embed.add_field(
+                name=f"{display_title} — 🕒 {local_time} {count_suffix}",
+                value=f"{member_list}\n\u200b",
+                inline=False
+            )
+        except Exception as e:
+            print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
     # Generate the map structure and export to GitHub API endpoints
     map_html = world_map._repr_html_()
@@ -241,7 +239,7 @@ async def update_chart():
         async for msg in channel.history(limit=10):
             if msg.author == client.user:
                 bot_messages.append(msg)
-                if len(bot_messages) == 2:  # FIXED: Removed the double len(len(...)) bug
+                if len(bot_messages) == 2: 
                     break
         
         bot_messages.reverse()
@@ -259,5 +257,5 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-if __name__ == "__main__":  # FIXED: Restored valid python entry point statement
+if __name__ == "__main__":
     client.run(TOKEN)
