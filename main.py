@@ -108,35 +108,42 @@ def push_map_to_github(html_content):
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN or GITHUB_REPO environment setups.")
         return
 
+    # Clean the repo string just in case it contains slashes or spaces
+    clean_repo = GITHUB_REPO.strip().strip("/")
     filename = "index.html"
-    # FIXED: Correct API endpoint URL target path
-    url = f"https://github.com{GITHUB_REPO}/contents/{filename}"
+    
+    # 🔥 FIXED: Hardcoded secure GitHub API developer endpoint path
+    url = f"https://github.com{clean_repo}/contents/{filename}"
+    
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
 
-    # Grab matching SHA file signature if index.html already exists
-    response = requests.get(url, headers=headers)
-    sha = None
-    if response.status_code == 200:
-        sha = response.json().get("sha")
+    try:
+        response = requests.get(url, headers=headers)
+        sha = None
+        if response.status_code == 200:
+            sha = response.json().get("sha")
 
-    encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
-    
-    payload = {
-        "message": f"🤖 Dynamic World Map Sync: {datetime.datetime.utcnow()} UTC",
-        "content": encoded_content
-    }
-    if sha:
-        payload["sha"] = sha
+        encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
+        
+        payload = {
+            "message": f"🤖 Dynamic World Map Sync: {datetime.datetime.utcnow()} UTC",
+            "content": encoded_content
+        }
+        if sha:
+            payload["sha"] = sha
 
-    put_response = requests.put(url, headers=headers, json=payload)
-    # FIXED: Added target success code matrix check parameters
-    if put_response.status_code == 200 or put_response.status_code == 201:
-        print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
-    else:
-        print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
+        put_response = requests.put(url, headers=headers, json=payload)
+        
+        if put_response.status_code == 200 or put_response.status_code == 201:
+            print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
+        else:
+            print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
+            
+    except Exception as e:
+        print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
 
 
 @tasks.loop(minutes=5)
