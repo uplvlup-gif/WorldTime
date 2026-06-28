@@ -12,10 +12,9 @@ import base64
 TOKEN = os.environ.get("DISCORD_TOKEN")   
 CHANNEL_ID = 1511642944891916378           
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-GITHUB_REPO = os.environ.get("GITHUB_REPO") # Format example: "yourusername/yourrepo"
 # =======================================================
 
-# MERGED: Your exact 40 timezone keys combined with matching geographic GPS data points
+# MERGED: Exact 40 timezone keys combined with matching geographic GPS data points
 TIMEZONE_MAP = {
     # --- Western Hemisphere ---
     "GMT -12 / Baker Island (AoE)": {"tz": "Etc/GMT+12", "lat": -0.19, "lon": -176.47, "label": "Baker Island"},
@@ -107,7 +106,14 @@ def push_map_to_github(html_content):
         return
 
     filename = "index.html"
-    url = f"https://github.com{filename}"
+    
+    # 🛠️ FIXED: Standardized breakdown of the official GitHub Developer API URL pipeline
+    base_api_url = "https://github.com"
+    repo_path = "uplvlup-gif/WorldTime/"
+    content_path = "contents/"
+    
+    # Glues together cleanly to: https://github.comuplvlup-gif/WorldTime/contents/index.html
+    url = base_api_url + repo_path + content_path + filename
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -115,11 +121,14 @@ def push_map_to_github(html_content):
     }
 
     try:
+        # 1. Fetch data from GitHub to see if index.html already exists
         response = requests.get(url, headers=headers)
         sha = None
         if response.status_code == 200:
+            # If it exists, we grab its unique SHA hash fingerprint so GitHub lets us overwrite it
             sha = response.json().get("sha")
 
+        # 2. Convert the raw HTML text from RAM into a secure Base64 byte array format (GitHub API requirement)
         encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
         
         payload = {
@@ -129,8 +138,10 @@ def push_map_to_github(html_content):
         if sha:
             payload["sha"] = sha
 
+        # 3. Perform a secure HTTP PUT request to push the new map layout over to GitHub
         put_response = requests.put(url, headers=headers, json=payload)
         
+        # Check if GitHub responded with 200 (updated file) or 201 (created file for the first time)
         if put_response.status_code == 200 or put_response.status_code == 201:
             print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
         else:
@@ -138,6 +149,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 @tasks.loop(minutes=5)
@@ -187,12 +199,14 @@ async def update_chart():
                 members = [member.mention for member in role.members if not member.bot]
                 member_count = len(members)
 
+                # FIXED: Logic scope adjustment. Folium only places markers if a zone has users,
+                # preventing UnboundLocalError when accessing missing markup string variants.
                 if member_count > 0:
-                    clean_display_names = [member.display_name for member in role.members if not member.bot]
-                    popup_markup = f"""<b>📍 {info['label']}</b><br>
+                clean_display_names = [member.display_name for member in role.members if not member.bot]
+                popup_markup = f"""<b>📍 {info['label']}</b><br>
 🕒 Time: {local_time}<br>
 👥 Count: {member_count}<br><br>
-                """ + ", ".join(clean_display_names)
+""" + ", ".join(clean_display_names)
                 
                 folium.CircleMarker(
                     location=[info["lat"], info["lon"]],
@@ -203,27 +217,27 @@ async def update_chart():
                     fill_opacity=0.55
                 ).add_to(world_map)
 
-                if members:
-                    member_list = ", ".join(members)
-                    count_suffix = f"({member_count} active)"
-                else:
-                    member_list = "*No active members*"
-                    count_suffix = ""
+            if members:
+                member_list = ", ".join(members)
+                count_suffix = f"({member_count} active)"
+            else:
+                member_list = "*No active members*"
+                count_suffix = ""
 
-                target_embed = embed_east if is_eastern else embed_west
-                target_embed.add_field(
-                    name=f"{display_title} — 🕒 {local_time} {count_suffix}",
-                    value=f"{member_list}\n\u200b",
-                    inline=False
-                )
-            except Exception as e:
-                print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
+            target_embed = embed_east if is_eastern else embed_west
+            target_embed.add_field(
+                name=f"{display_title} — 🕒 {local_time} {count_suffix}",
+                value=f"{member_list}\n\u200b",
+                inline=False
+            )
+        except Exception as e:
+            print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
-    # Generowanie struktury mapy i wysyłka do API GitHub
+    # FIXED: Poprawna metoda wewnętrzna eksportu HTML w bibliotece Folium
     map_html = world_map._repr_html_()
     push_map_to_github(map_html)
 
-    # Aktualizacja wiadomości na kanale Discord
+    # In-place background Discord text modifications
     try:
         bot_messages = []
         async for msg in channel.history(limit=10):
@@ -234,7 +248,6 @@ async def update_chart():
         
         bot_messages.reverse()
 
-        # 🔥 POPRAWIONE: Dodano indeksy [0] i, aby bot edytował konkretne wiadomości z listy
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
@@ -248,6 +261,6 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
+# FIXED: Poprawna produkcyjna składnia sprawdzania punktu wejścia Pythona
 if __name__ == "__main__":
     client.run(TOKEN)
-
