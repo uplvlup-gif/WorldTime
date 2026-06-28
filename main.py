@@ -132,6 +132,9 @@ async def update_chart():
         role = discord.utils.get(guild.roles, name=role_name)
         if role:
             try:
+                # 🔄 FORCE CACHE RELOAD: Downloads all member details to prevent raw number bugs
+                await guild.chunk() 
+
                 tz = pytz.timezone(tz_string)
                 now_localized = datetime.datetime.now(tz)
                 local_time = now_localized.strftime("%I:%M %p")
@@ -150,8 +153,8 @@ async def update_chart():
                     if static_tag in display_title:
                         display_title = display_title.replace(static_tag, dynamic_tag)
                 
-                members = [f"**{member.display_name if member.display_name else member.name}**" for member in role.members if not member.bot]
-
+                # FIXED: Changed back to member.mention for fully clickable tags!
+                members = [member.mention for member in role.members if not member.bot]
                 
                 if members:
                     member_list = ", ".join(members)
@@ -166,6 +169,7 @@ async def update_chart():
                     value=f"{member_list}\n\u200b",
                     inline=False
                 )
+
             except Exception as e:
                 print(f"⚠️ Error parsing timezone {tz_string}: {e}")
 
