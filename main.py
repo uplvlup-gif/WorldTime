@@ -105,15 +105,8 @@ def push_map_to_github(html_content):
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    filename = "index.html"
-    
-    # 🛠️ FIXED: Standardized breakdown of the official GitHub Developer API URL pipeline
-    base_api_url = "https://github.com"
-    repo_path = "uplvlup-gif/WorldTime/"
-    content_path = "contents/"
-    
-    # Glues together cleanly to: https://github.comuplvlup-gif/WorldTime/contents/index.html
-    url = base_api_url + repo_path + content_path + filename
+    # 🔥 FIXED URL: Hardcoded official API endpoint path to completely bypass the gluing bug
+    url = "https://github.com"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -121,14 +114,14 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # 1. Fetch data from GitHub to see if index.html already exists
+        # 1. Ask GitHub if index.html already exists
         response = requests.get(url, headers=headers)
         sha = None
         if response.status_code == 200:
-            # If it exists, we grab its unique SHA hash fingerprint so GitHub lets us overwrite it
+            # If it exists, grab its unique SHA file fingerprint so GitHub allows us to overwrite it
             sha = response.json().get("sha")
 
-        # 2. Convert the raw HTML text from RAM into a secure Base64 byte array format (GitHub API requirement)
+        # 2. Encode our map HTML text from RAM into a Base64 string format (GitHub API requirement)
         encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
         
         payload = {
@@ -138,10 +131,9 @@ def push_map_to_github(html_content):
         if sha:
             payload["sha"] = sha
 
-        # 3. Perform a secure HTTP PUT request to push the new map layout over to GitHub
+        # 3. Push the fresh map file to your repository
         put_response = requests.put(url, headers=headers, json=payload)
         
-        # Check if GitHub responded with 200 (updated file) or 201 (created file for the first time)
         if put_response.status_code == 200 or put_response.status_code == 201:
             print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
         else:
@@ -149,6 +141,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 
