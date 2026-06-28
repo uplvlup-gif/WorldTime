@@ -130,11 +130,12 @@ def push_map_to_github(html_content):
     if sha:
         payload["sha"] = sha
 
-       put_response = requests.put(url, headers=headers, json=payload)
+    put_response = requests.put(url, headers=headers, json=payload)
     if put_response.status_code in:
         print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
     else:
         print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
+
 
 
 
