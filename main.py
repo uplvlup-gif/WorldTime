@@ -64,7 +64,6 @@ TIMEZONE_MAP = {
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-# Cache all server members cleanly at gateway connection startup to avoid freezes
 client = discord.Client(intents=intents, chunk_guilds_at_startup=True)
 
 @client.event
@@ -91,7 +90,6 @@ async def on_raw_reaction_add(payload):
     if not missing_role or missing_role not in member.roles:
         return
 
-    # MERGED: High-speed O(1) set lookup pattern replacing your old loop
     timezone_role_names = set(TIMEZONE_MAP.keys())
     has_timezone_role = any(role.name in timezone_role_names for role in member.roles)
 
@@ -109,8 +107,6 @@ def push_map_to_github(html_content):
         return
 
     filename = "index.html"
-    
-    # 🔥 FIXED LINE 115: Swapped the broken string combination out for your repository's developer endpoint
     url = f"https://github.com{filename}"
     
     headers = {
@@ -152,10 +148,8 @@ async def update_chart():
         return
 
     guild = channel.guild
-    # Map roles by name to protect against O(N) execution slow downs
     roles_by_name = {role.name: role for role in guild.roles}
     
-    # Initialize a Dark Matter dark-themed world atlas centered around the Greenwich Meridian
     world_map = folium.Map(location=[20, 0], zoom_start=2, tiles="CartoDB dark_matter")
 
     embed_west = discord.Embed(
@@ -173,7 +167,6 @@ async def update_chart():
     replacements = ["(PST)", "(MST)", "(CST)", "(EST)", "(AST)", "(WET / GMT)", "(CET)", "(EET)", "(AEST)", "(NZST)"]
 
     for role_name, info in TIMEZONE_MAP.items():
-        # Check matching switch anchor for your split line
         if role_name == "GMT +3:30 / Iran (IRST)":
             is_eastern = True
 
@@ -188,30 +181,27 @@ async def update_chart():
                 display_title = role_name
                 for static_tag in replacements:
                     if static_tag in display_title:
-                display_title = display_title.replace(static_tag, f"({active_abbreviation})")
-                break
+                        display_title = display_title.replace(static_tag, f"({active_abbreviation})")
+                        break
                 
-            # Fetch clickable discord tags for embeds
-            members = [member.mention for member in role.members if not member.bot]
-            member_count = len(members)
+                members = [member.mention for member in role.members if not member.bot]
+                member_count = len(members)
 
-            # --- MERGED: Add dynamic geographic node markers for your website map ---
-            if member_count > 0:
-                clean_display_names = [member.display_name for member in role.members if not member.bot]
-                popup_markup = f"""<b>📍 {info['label']}</b><br>
+                if member_count > 0:
+                    clean_display_names = [member.display_name for member in role.members if not member.bot]
+                    popup_markup = f"""<b>📍 {info['label']}</b><br>
 🕒 Time: {local_time}<br>
 👥 Count: {member_count}<br><br>
-""" + ", ".join(clean_display_names)
+                """ + ", ".join(clean_display_names)
                 
                 folium.CircleMarker(
                     location=[info["lat"], info["lon"]],
-                    radius=8 + (member_count * 1.5), # Scales based on cluster concentration density
+                    radius=8 + (member_count * 1.5),
                     popup=folium.Popup(popup_markup, max_width=280),
                     color="#3498db" if not is_eastern else "#e67e22",
                     fill=True,
                     fill_opacity=0.55
                 ).add_to(world_map)
-            # -----------------------------------------------------------------------
 
             if members:
                 member_list = ", ".join(members)
@@ -229,21 +219,21 @@ async def update_chart():
         except Exception as e:
             print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
-    # Generate the map structure and export to GitHub API endpoints
+    # FIXED: Poprawna wewnętrzna metoda eksportu HTML w bibliotece Folium
     map_html = world_map._repr_html_()
     push_map_to_github(map_html)
 
-    # In-place background Discord text modifications
     try:
         bot_messages = []
         async for msg in channel.history(limit=10):
             if msg.author == client.user:
                 bot_messages.append(msg)
-                if len(bot_messages) == 2: 
+                if len(bot_messages) == 2:
                     break
         
         bot_messages.reverse()
 
+        # FIXED: Poprawne odwołanie do konkretnych obiektów wiadomości w liście za pomocą indeksów [0] oraz [1]
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
@@ -257,5 +247,6 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
+# FIXED: Poprawna dla środowiska produkcyjnego składnia sprawdzania punktu startowego Pythona
 if __name__ == "__main__":
     client.run(TOKEN)
