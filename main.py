@@ -150,7 +150,7 @@ async def update_chart():
                     if static_tag in display_title:
                         display_title = display_title.replace(static_tag, dynamic_tag)
                 
-                members = [f"**{member.display_name}**" for member in role.members if not member.bot]
+                members = [f"**{member.display_name if member.display_name else member.name}**" for member in role.members if not member.bot]
 
                 
                 if members:
