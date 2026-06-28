@@ -162,6 +162,7 @@ async def update_chart():
     guild = channel.guild
     roles_by_name = {role.name: role for role in guild.roles}
     
+    # Initialize a Dark Matter dark-themed world atlas centered around the Greenwich Meridian
     world_map = folium.Map(location=[20, 0], zoom_start=2, tiles="CartoDB dark_matter")
 
     embed_west = discord.Embed(
@@ -179,6 +180,7 @@ async def update_chart():
     replacements = ["(PST)", "(MST)", "(CST)", "(EST)", "(AST)", "(WET / GMT)", "(CET)", "(EET)", "(AEST)", "(NZST)"]
 
     for role_name, info in TIMEZONE_MAP.items():
+        # Check matching switch anchor for your split line
         if role_name == "GMT +3:30 / Iran (IRST)":
             is_eastern = True
 
@@ -196,6 +198,7 @@ async def update_chart():
                         display_title = display_title.replace(static_tag, f"({active_abbreviation})")
                         break
                 
+                # Fetch clickable discord tags for embeds
                 members = [member.mention for member in role.members if not member.bot]
                 member_count = len(members)
 
@@ -209,7 +212,7 @@ async def update_chart():
                     
                     folium.CircleMarker(
                         location=[info["lat"], info["lon"]],
-                        radius=8 + (member_count * 1.5),
+                        radius=8 + (member_count * 1.5),  # Scales based on cluster concentration density
                         popup=folium.Popup(popup_markup, max_width=280),
                         color="#3498db" if not is_eastern else "#e67e22",
                         fill=True,
@@ -230,9 +233,37 @@ async def update_chart():
                     value=f"{member_list}\n\u200b",
                     inline=False
                 )
+            except Exception as e:
+                print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
-        except Exception as e:
-            print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
+    # Generate the map structure and export to GitHub API endpoints
+    map_html = world_map._repr_html_()
+    push_map_to_github(map_html)
+
+    # In-place background Discord text modifications
+    try:
+        bot_messages = []
+        async for msg in channel.history(limit=10):
+            if msg.author == client.user:
+                bot_messages.append(msg)
+                if len(bot_messages) == 2:
+                    break
+        
+        bot_messages.reverse()
+
+        if len(bot_messages) >= 2:
+            await bot_messages[0].edit(embed=embed_west)
+            await bot_messages[1].edit(embed=embed_east)
+            print("🔄 Timezone chart updated seamlessly across directory split.")
+        else:
+            await channel.purge(limit=10, check=lambda m: m.author == client.user)
+            await channel.send(embed=embed_west)
+            await channel.send(embed=embed_east)
+            print("✨ Fresh data layouts deployed to tracking window.")
+            
+    except discord.errors.HTTPException as http_err:
+        print(f"❌ Discord API limit threshold reached: {http_err}")
+
 
     # FIXED: Poprawna metoda wewnętrzna eksportu HTML w bibliotece Folium
     map_html = world_map._repr_html_()
