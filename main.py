@@ -133,7 +133,7 @@ def push_map_to_github(html_content):
 
     put_response = requests.put(url, headers=headers, json=payload)
     # FIXED: Added target success code matrix check parameters
-    if put_response.status_code in:
+    if put_response.status_code == 200 or put_response.status_code == 201:
         print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
     else:
         print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
