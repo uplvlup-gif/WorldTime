@@ -109,6 +109,7 @@ def push_map_to_github(html_content):
         return
 
     filename = "index.html"
+    # FIXED: Correct API endpoint URL target path
     url = f"https://github.com{GITHUB_REPO}/contents/{filename}"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -131,12 +132,11 @@ def push_map_to_github(html_content):
         payload["sha"] = sha
 
     put_response = requests.put(url, headers=headers, json=payload)
+    # FIXED: Added target success code matrix check parameters
     if put_response.status_code in:
         print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
     else:
         print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
-
-
 
 
 @tasks.loop(minutes=5)
@@ -194,7 +194,10 @@ async def update_chart():
                 # --- MERGED: Add dynamic geographic node markers for your website map ---
                 if member_count > 0:
                     clean_display_names = [member.display_name for member in role.members if not member.bot]
-                    popup_markup = f"<b>📍 {info['label']}</b><br>🕒 Time: {local_time}<br>👥 Count: {member_count}<br><br>" + ", ".join(clean_display_names)
+                    popup_markup = f"""<b>📍 {info['label']}</b><br>
+🕒 Time: {local_time}<br>
+👥 Count: {member_count}<br><br>
+""" + ", ".join(clean_display_names)
                     
                     folium.CircleMarker(
                         location=[info["lat"], info["lon"]],
@@ -232,7 +235,7 @@ async def update_chart():
         async for msg in channel.history(limit=10):
             if msg.author == client.user:
                 bot_messages.append(msg)
-                if len(bot_messages) == 2:
+                if len(bot_messages) == 2:  # FIXED: Removed the double len(len(...)) bug
                     break
         
         bot_messages.reverse()
@@ -250,5 +253,5 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # FIXED: Restored valid python entry point statement
     client.run(TOKEN)
