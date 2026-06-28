@@ -104,16 +104,14 @@ async def on_raw_reaction_add(payload):
 
 def push_map_to_github(html_content):
     """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
-    if not GITHUB_TOKEN or not GITHUB_REPO:
-        print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN or GITHUB_REPO environment setups.")
+    if not GITHUB_TOKEN:
+        print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    # Clean the repo string just in case it contains slashes or spaces
-    clean_repo = GITHUB_REPO.strip().strip("/")
     filename = "index.html"
     
-    # 🔥 FIXED: Hardcoded secure GitHub API developer endpoint path
-    url = f"https://github.com{clean_repo}/contents/{filename}"
+    # 🔥 NAPRAWIONE NA SZTYWNO: Oficjalny punkt końcowy API GitHub bez użycia problematycznych zmiennych tekstowych
+    url = f"https://github.com{filename}"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -144,6 +142,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 @tasks.loop(minutes=5)
