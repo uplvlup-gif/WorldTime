@@ -14,7 +14,6 @@ CHANNEL_ID = 1511642944891916378
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # =======================================================
 
-# MERGED: Exact 40 timezone keys combined with matching geographic GPS data points
 TIMEZONE_MAP = {
     # --- Western Hemisphere ---
     "GMT -12 / Baker Island (AoE)": {"tz": "Etc/GMT+12", "lat": -0.19, "lon": -176.47, "label": "Baker Island"},
@@ -72,41 +71,14 @@ async def on_ready():
     if not update_chart.is_running():
         update_chart.start()
 
-@client.event
-async def on_raw_reaction_add(payload):
-    if payload.user_id == client.user.id:
-        return
-
-    guild = client.get_guild(payload.guild_id)
-    if not guild:
-        return
-
-    member = guild.get_member(payload.user_id)
-    if not member:
-        return
-
-    missing_role = discord.utils.get(guild.roles, name="MissingTimezone")
-    if not missing_role or missing_role not in member.roles:
-        return
-
-    timezone_role_names = set(TIMEZONE_MAP.keys())
-    has_timezone_role = any(role.name in timezone_role_names for role in member.roles)
-
-    if has_timezone_role:
-        try:
-            await member.remove_roles(missing_role)
-            print(f"⚡ Python auto-stripped 'Missing Timezone' role from {member.name}!")
-        except discord.errors.Forbidden:
-            print("❌ Permission Error: Move the bot's role HIGHER up in Server Settings > Roles!")
-
 def push_map_to_github(html_content):
-    """Encodes and forces a push of our interactive map layout directly into the repository."""
+    """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
     if not GITHUB_TOKEN:
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    # 🛠️ HARDCODED SECURE GITHUB Rest API PATHWAYS
-    url = "https://github.com"
+    filename = "index.html"
+    url = f"https://github.com{filename}"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -115,7 +87,7 @@ def push_map_to_github(html_content):
 
     try:
         # Appends a unique cache-buster parameter to guarantee live server delivery
-        cache_bust_url = f"{url}&t={int(datetime.datetime.now(datetime.UTC).timestamp())}" if "?" in url else f"{url}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
+        cache_bust_url = f"{url}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
         response = requests.get(cache_bust_url, headers=headers)
         
         sha = None
@@ -141,11 +113,6 @@ def push_map_to_github(html_content):
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
 
-
-
-
-
-
 @tasks.loop(minutes=5)
 async def update_chart():
     await client.wait_until_ready()
@@ -156,7 +123,6 @@ async def update_chart():
     guild = channel.guild
     roles_by_name = {role.name: role for role in guild.roles}
     
-    # Initialize a Dark Matter dark-themed world atlas centered around the Greenwich Meridian
     world_map = folium.Map(location=[20, 0], zoom_start=2, tiles="CartoDB dark_matter")
 
     embed_west = discord.Embed(
@@ -174,7 +140,6 @@ async def update_chart():
     replacements = ["(PST)", "(MST)", "(CST)", "(EST)", "(AST)", "(WET / GMT)", "(CET)", "(EET)", "(AEST)", "(NZST)"]
 
     for role_name, info in TIMEZONE_MAP.items():
-        # Check matching switch anchor for your split line
         if role_name == "GMT +3:30 / Iran (IRST)":
             is_eastern = True
 
@@ -192,11 +157,9 @@ async def update_chart():
                         display_title = display_title.replace(static_tag, f"({active_abbreviation})")
                         break
                 
-                # Fetch clickable discord tags for embeds
                 members = [member.mention for member in role.members if not member.bot]
                 member_count = len(members)
 
-                # --- MERGED: Add dynamic geographic node markers for your website map ---
                 if member_count > 0:
                     clean_display_names = [member.display_name for member in role.members if not member.bot]
                     popup_markup = f"""<b>📍 {info['label']}</b><br>
@@ -206,13 +169,12 @@ async def update_chart():
                     
                     folium.CircleMarker(
                         location=[info["lat"], info["lon"]],
-                        radius=8 + (member_count * 1.5),  # Scales based on cluster concentration density
+                        radius=8 + (member_count * 1.5),
                         popup=folium.Popup(popup_markup, max_width=280),
                         color="#3498db" if not is_eastern else "#e67e22",
                         fill=True,
                         fill_opacity=0.55
                     ).add_to(world_map)
-                # -----------------------------------------------------------------------
 
                 if members:
                     member_list = ", ".join(members)
@@ -221,6 +183,7 @@ async def update_chart():
                     member_list = "*No active members*"
                     count_suffix = ""
 
+                target_embed = embed_east if is_eastern else embed_west
                 target_embed = embed_east if is_eastern else embed_west
                 target_embed.add_field(
                     name=f"{display_title} — 🕒 {local_time} {count_suffix}",
@@ -250,7 +213,12 @@ async def update_chart():
             await bot_messages[1].edit(embed=embed_east)
             print("🔄 Timezone chart updated seamlessly across directory split.")
         else:
-            await channel.purge(limit=10, check=lambda m: m.author == client.user)
+            # FIX: Safe message recreation without breaking tracking loop anchoring logic
+            for old_msg in bot_messages:
+                try:
+                    await old_msg.delete()
+                except discord.HTTPException:
+                    pass
             await channel.send(embed=embed_west)
             await channel.send(embed=embed_east)
             print("✨ Fresh data layouts deployed to tracking window.")
@@ -258,35 +226,5 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-
-    # FIXED: Poprawna metoda wewnętrzna eksportu HTML w bibliotece Folium
-    map_html = world_map._repr_html_()
-    push_map_to_github(map_html)
-
-    # In-place background Discord text modifications
-    try:
-        bot_messages = []
-        async for msg in channel.history(limit=10):
-            if msg.author == client.user:
-                bot_messages.append(msg)
-                if len(bot_messages) == 2:
-                    break
-        
-        bot_messages.reverse()
-
-        if len(bot_messages) >= 2:
-            await bot_messages[0].edit(embed=embed_west)
-            await bot_messages[1].edit(embed=embed_east)
-            print("🔄 Timezone chart updated seamlessly across directory split.")
-        else:
-            await channel.purge(limit=10, check=lambda m: m.author == client.user)
-            await channel.send(embed=embed_west)
-            await channel.send(embed=embed_east)
-            print("✨ Fresh data layouts deployed to tracking window.")
-            
-    except discord.errors.HTTPException as http_err:
-        print(f"❌ Discord API limit threshold reached: {http_err}")
-
-# FIXED: Poprawna produkcyjna składnia sprawdzania punktu wejścia Pythona
 if __name__ == "__main__":
     client.run(TOKEN)
