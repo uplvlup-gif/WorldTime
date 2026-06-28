@@ -100,13 +100,13 @@ async def on_raw_reaction_add(payload):
             print("❌ Permission Error: Move the bot's role HIGHER up in Server Settings > Roles!")
 
 def push_map_to_github(html_content):
-    """Encodes and pushes our live interactive Folium HTML map asset up to GitHub Pages repository."""
+    """Encodes and forces a push of our interactive map layout directly into the repository."""
     if not GITHUB_TOKEN:
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    # 🔥 FIXED URL: Hardcoded official API endpoint path to completely bypass the gluing bug
-    url = "https://github.com"
+    filename = "index.html"
+    url = f"https://github.com{filename}"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -114,14 +114,14 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # 1. Ask GitHub if index.html already exists
-        response = requests.get(url, headers=headers)
+        # Force fetch with a cache-busting timestamp query parameter
+        cache_bust_url = f"{url}?t={int(datetime.datetime.utcnow().timestamp())}"
+        response = requests.get(cache_bust_url, headers=headers)
+        
         sha = None
         if response.status_code == 200:
-            # If it exists, grab its unique SHA file fingerprint so GitHub allows us to overwrite it
             sha = response.json().get("sha")
 
-        # 2. Encode our map HTML text from RAM into a Base64 string format (GitHub API requirement)
         encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
         
         payload = {
@@ -131,16 +131,16 @@ def push_map_to_github(html_content):
         if sha:
             payload["sha"] = sha
 
-        # 3. Push the fresh map file to your repository
         put_response = requests.put(url, headers=headers, json=payload)
         
         if put_response.status_code == 200 or put_response.status_code == 201:
-            print("🌐 Interactive web map framework pushed seamlessly to GitHub Pages branch.")
+            print("🌐 SUCCESS: Interactive web map has been successfully updated on your GitHub branch!")
         else:
             print(f"❌ GitHub Deployment Failure: {put_response.status_code} - {put_response.text}")
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 
