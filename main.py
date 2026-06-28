@@ -58,7 +58,7 @@ TIMEZONE_MAP = {
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
-client = discord.Client(intents=intents)
+client = discord.Client(intents=intents, chunk_guilds_at_startup=True)
 
 @client.event
 async def on_ready():
@@ -100,17 +100,14 @@ async def update_chart():
     await client.wait_until_ready()
     channel = client.get_channel(CHANNEL_ID)
     if not channel:
+        print(f"❌ Could not find channel {CHANNEL_ID}")
         return
 
     guild = channel.guild
     
-    try:
-        # 🔥 FIXED: Force a single, clean cache download ONCE before iterating roles
-        await guild.chunk() 
-    except Exception as e:
-        print(f"⚠️ Chunking failed, proceeding with local cache: {e}")
+    # ❌ REMOVED guild.chunk() completely to prevent the 2026 gateway freeze bug!
+    # The cache is now handled cleanly by chunk_guilds_at_startup=True.
 
-    # Optimization: Map roles by name to avoid O(N) database iterations
     roles_by_name = {role.name: role for role in guild.roles}
     
     embed_west = discord.Embed(
@@ -145,6 +142,7 @@ async def update_chart():
                         display_title = display_title.replace(static_tag, f"({active_abbreviation})")
                         break
                 
+                # Fetch members safely from internal gateway cache
                 members = [member.mention for member in role.members if not member.bot]
                 
                 if members:
@@ -176,7 +174,7 @@ async def update_chart():
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
-            print("🔄 Timezone chart updated as a single seamless directory split.")
+            print("🔄 Timezone chart updated seamlessly.")
         else:
             await channel.purge(limit=10, check=lambda m: m.author == client.user)
             await channel.send(embed=embed_west)
@@ -185,6 +183,7 @@ async def update_chart():
             
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
+
 
 if __name__ == "__main__":
     if not TOKEN:
