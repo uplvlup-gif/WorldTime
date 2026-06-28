@@ -105,8 +105,8 @@ def push_map_to_github(html_content):
         print("⚠️ GitHub generation skipped: Missing GITHUB_TOKEN environment setup.")
         return
 
-    filename = "index.html"
-    url = f"https://github.com{filename}"
+    # 🛠️ HARDCODED SECURE GITHUB Rest API PATHWAYS
+    url = "https://github.com"
     
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -114,8 +114,8 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # Force fetch with a cache-busting timestamp query parameter
-        cache_bust_url = f"{url}?t={int(datetime.datetime.utcnow().timestamp())}"
+        # Appends a unique cache-buster parameter to guarantee live server delivery
+        cache_bust_url = f"{url}&t={int(datetime.datetime.now(datetime.UTC).timestamp())}" if "?" in url else f"{url}?t={int(datetime.datetime.now(datetime.UTC).timestamp())}"
         response = requests.get(cache_bust_url, headers=headers)
         
         sha = None
@@ -125,7 +125,7 @@ def push_map_to_github(html_content):
         encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
         
         payload = {
-            "message": f"🤖 Dynamic World Map Sync: {datetime.datetime.utcnow()} UTC",
+            "message": f"🤖 Dynamic World Map Sync: {datetime.datetime.now(datetime.UTC)} UTC",
             "content": encoded_content
         }
         if sha:
@@ -140,6 +140,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 
