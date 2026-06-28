@@ -150,7 +150,8 @@ async def update_chart():
                     if static_tag in display_title:
                         display_title = display_title.replace(static_tag, dynamic_tag)
                 
-                members = [member.mention for member in role.members if not member.bot]
+                members = [f"**{member.display_name}**" for member in role.members if not member.bot]
+
                 
                 if members:
                     member_list = ", ".join(members)
