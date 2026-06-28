@@ -203,26 +203,27 @@ async def update_chart():
                     fill_opacity=0.55
                 ).add_to(world_map)
 
-            if members:
-                member_list = ", ".join(members)
-                count_suffix = f"({member_count} active)"
-            else:
-                member_list = "*No active members*"
-                count_suffix = ""
+                if members:
+                    member_list = ", ".join(members)
+                    count_suffix = f"({member_count} active)"
+                else:
+                    member_list = "*No active members*"
+                    count_suffix = ""
 
-            target_embed = embed_east if is_eastern else embed_west
-            target_embed.add_field(
-                name=f"{display_title} — 🕒 {local_time} {count_suffix}",
-                value=f"{member_list}\n\u200b",
-                inline=False
-            )
-        except Exception as e:
-            print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
+                target_embed = embed_east if is_eastern else embed_west
+                target_embed.add_field(
+                    name=f"{display_title} — 🕒 {local_time} {count_suffix}",
+                    value=f"{member_list}\n\u200b",
+                    inline=False
+                )
+            except Exception as e:
+                print(f"⚠️ Error parsing processing matrix for zone {info['tz']}: {e}")
 
-    # FIXED: Poprawna wewnętrzna metoda eksportu HTML w bibliotece Folium
+    # Generowanie struktury mapy i wysyłka do API GitHub
     map_html = world_map._repr_html_()
     push_map_to_github(map_html)
 
+    # Aktualizacja wiadomości na kanale Discord
     try:
         bot_messages = []
         async for msg in channel.history(limit=10):
@@ -233,7 +234,7 @@ async def update_chart():
         
         bot_messages.reverse()
 
-        # FIXED: Poprawne odwołanie do konkretnych obiektów wiadomości w liście za pomocą indeksów [0] oraz [1]
+        # 🔥 POPRAWIONE: Dodano indeksy [0] i, aby bot edytował konkretne wiadomości z listy
         if len(bot_messages) >= 2:
             await bot_messages[0].edit(embed=embed_west)
             await bot_messages[1].edit(embed=embed_east)
@@ -247,6 +248,6 @@ async def update_chart():
     except discord.errors.HTTPException as http_err:
         print(f"❌ Discord API limit threshold reached: {http_err}")
 
-# FIXED: Poprawna dla środowiska produkcyjnego składnia sprawdzania punktu startowego Pythona
 if __name__ == "__main__":
     client.run(TOKEN)
+
