@@ -85,26 +85,31 @@ def push_map_to_github(html_content):
     }
 
     try:
-        # Use a clean system parameter to fetch the real base data block
+        # Force fresh lookup from the main branch blueprint
         params = {"ref": "main"}
         response = requests.get(url, headers=headers, params=params)
         
         sha = None
         if response.status_code == 200:
             sha = response.json().get("sha")
+        elif response.status_code == 404:
+            print("ℹ️ File index.html not detected or token restricted. Attempting raw initialization push...")
+        elif response.status_code == 401:
+            print("❌ GitHub Authentication Failed: Your GITHUB_TOKEN is invalid or expired!")
+            return
 
         encoded_content = base64.b64encode(html_content.encode("utf-8")).decode("utf-8")
         
         payload = {
             "message": f"🤖 Dynamic World Map Sync: {datetime.datetime.now(datetime.UTC)} UTC",
-            "content": encoded_content
+            "content": encoded_content,
+            "branch": "main"
         }
         if sha:
             payload["sha"] = sha
 
         put_response = requests.put(url, headers=headers, json=payload)
         
-        # 🔥 FIXED: Avoided the 'in' keyword to bypass text-stripping errors completely
         if put_response.status_code == 200 or put_response.status_code == 201:
             print("🌐 SUCCESS: Interactive web map has been successfully updated on your GitHub branch!")
         else:
@@ -112,6 +117,7 @@ def push_map_to_github(html_content):
             
     except Exception as e:
         print(f"❌ Critical error executing GitHub API sync pipeline: {e}")
+
 
 
 @tasks.loop(minutes=5)
